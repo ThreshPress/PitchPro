@@ -1,0 +1,55 @@
+
+name: Extract Pitch Pro App
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Pitch Pro ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZIP="pitchpro-phone-app.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ZIP file not found: $ZIP"
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/pitchpro"
+
+          unzip -q "$ZIP" -d "$RUNNER_TEMP/pitchpro"
+
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            "$RUNNER_TEMP/pitchpro/" ./
+
+          git rm -- "$ZIP"
+
+      - name: Commit extracted files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Extract Pitch Pro application"
+            git push
+          fi
