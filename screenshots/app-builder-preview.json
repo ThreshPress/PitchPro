@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Pitch Pro",
+      "hasCanvas": false,
+      "bodyTextLen": 208,
+      "bodyTextHash": "d6db60d40a5303a4f91e28b56dd426715d460c12c6b9a48dced9c073214f4fac",
+      "bodyTextPrefix": "Pitch Pro Name Gender Girl Boy Unspecified Years 4 5 6 7 8 9 10 ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Pitch Pro",
+      "hasCanvas": false,
+      "bodyTextLen": 9,
+      "bodyTextHash": "580b246630b73ba92bb49b80bbf572ad3e74fd368ac1850caeedfba2844d2a86",
+      "bodyTextPrefix": "Pitch Pro",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}
