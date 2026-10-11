@@ -817,7 +817,7 @@ export function buildFuel(age: number, gender: Gender, kind: "train" | "match" |
 
 export const HOW_IT_WORKS: string[] = [
   "Daily ball targets follow the kind of individual volume used around top MLS NEXT and ECNL schedules at each age. Younger days are shorter and more playful. Older days trade junk volume for sharper work because the team session carries more of the load.",
-  "Eight skill ratings become one technical index. An on-track curve runs from early beginner at age 4 to high-advanced at 18. If the player is behind that curve, the dose rises. If they are ahead, the plan gets pickier instead of longer.",
+  "Eight ratings from 0 to 100 average into the index. New players start near 16. The same session moves a beginner more than a proficient player, and barely moves a skill already near 88. Years of work raise the index. One day does not.",
   "Recreational weeks add individual work, because match reps are fewer. Competitive weeks trim it, so team training plus the yard does not become an injury plan.",
   "A weekly hour ceiling by age caps the math. If the gap wants more than the ceiling allows, the plan says so. Past a point, the lever is the team environment, not another hour outside.",
   "A missed check shortens and simplifies the next stretch. An exceeded check adds harder constraints, not a second workout. Soreness and stacked team load cut volume immediately.",

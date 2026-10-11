@@ -141,8 +141,7 @@ export function ClipsBoard({ player }: { player: Player }) {
   return (
     <div className="flex flex-col gap-5">
       <section className="card p-4">
-        <p className="kicker">Skill video review</p>
-        <p className="mt-2 text-sm text-muted">Upload a short drill clip (up to 45 seconds / 30 MB), then rate the observable actions with the guided checklist. This is a parent/coach observation, not automatic AI video analysis or a verified scouting grade. A clip cannot by itself establish professional potential.</p>
+        <p className="kicker">Clip</p>
         <button type="button" className="btn btn-secondary mt-3" onClick={() => fileRef.current?.click()}>
           Upload
         </button>
@@ -195,7 +194,7 @@ export function ClipsBoard({ player }: { player: Player }) {
               </label>
             ))}
             <button type="button" className="btn btn-primary" disabled={!ready || busy} onClick={() => void assess()}>
-              Save guided assessment
+              Assess
             </button>
           </div>
         ) : null}

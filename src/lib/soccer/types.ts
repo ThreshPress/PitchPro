@@ -56,7 +56,6 @@ export interface SessionLog {
   date: string;
   touchesDone: number;
   touchesTarget: number;
-  completed?: boolean;
   theme: SkillKey;
   gain: number;
   indexBefore: number;

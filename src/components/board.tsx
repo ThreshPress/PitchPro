@@ -2,9 +2,10 @@ import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Scatter, ScatterChart, XAxis, YAxis, ZAxis } from "recharts";
 import { SessionDetail } from "@/components/session";
 import { cn } from "@/lib/cn";
-import { SKILL_LABEL } from "@/lib/soccer/copy";
+import { SKILL_LABEL, BAND_LABEL } from "@/lib/soccer/copy";
 import {
   addDays,
+  bandFromAttr,
   buildPlan,
   dateKey,
   formatNumber,
@@ -47,6 +48,7 @@ function IndexMark({ player }: { player: Player }) {
     <div className="card flex flex-col justify-between p-5">
       <p className="kicker">Index</p>
       <p className="font-display text-8xl leading-none text-ink">{formatIndex(index)}</p>
+      <p className="mt-2 text-sm text-muted">{BAND_LABEL[bandFromAttr(index)]}</p>
     </div>
   );
 }
@@ -101,7 +103,7 @@ function SpokeTick({ x = 0, y = 0, textAnchor = "middle", payload, hot, values }
         {name}
       </tspan>
       <tspan x={x} dy="1.15em" fontSize={12} fill={on ? "var(--color-pitch)" : "var(--color-ink)"}>
-        {value.toFixed(0)}
+        {value.toFixed(1)}
       </tspan>
     </text>
   );
@@ -124,19 +126,19 @@ function LogWork({
   existing,
   onNext,
   onBack,
+  skillNow,
 }: {
   playerId: string;
   day: { date: string; touches: number; theme: SkillKey };
   existing?: Player["logs"][number];
+  skillNow?: number;
   onNext?: () => void;
   onBack?: () => void;
 }) {
   const logWork = usePitch((s) => s.logWork);
   const [touches, setTouches] = useState(existing ? String(existing.touchesDone) : "");
-  const [completed, setCompleted] = useState(existing?.completed ?? true);
   useEffect(() => {
     setTouches(existing ? String(existing.touchesDone) : "");
-    setCompleted(existing?.completed ?? true);
   }, [day.date, existing]);
   const today = dateKey(new Date());
   const open = day.date <= today;
@@ -145,8 +147,7 @@ function LogWork({
 
   return (
     <section className="card p-4">
-      <p className="kicker">Daily training log</p>
-      <p className="mt-2 text-xs text-muted">Touch counts are self-reported. Rating changes are small training credits, not independently measured skill improvement. Missed work rolls forward only when you record a shortfall or zero.</p>
+      <p className="kicker">Log</p>
       {open ? (
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="block">
@@ -159,10 +160,6 @@ function LogWork({
               onChange={(e) => setTouches(e.target.value.replace(/[^\d]/g, ""))}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} />
-            Completed the planned drills
-          </label>
           <button type="button" className="btn btn-secondary" onClick={() => setTouches(String(day.touches))}>
             All {formatNumber(day.touches)}
           </button>
@@ -170,7 +167,7 @@ function LogWork({
             type="button"
             className="btn btn-primary"
             disabled={!Number.isFinite(done) || touches === ""}
-            onClick={() => logWork(playerId, day.date, done, completed)}
+            onClick={() => logWork(playerId, day.date, done)}
           >
             Log
           </button>
@@ -204,8 +201,8 @@ function LogWork({
       </div>
       {existing ? (
         <p className="mt-3 text-sm">
-          {formatNumber(existing.touchesDone)} / {formatNumber(existing.touchesTarget)} · {formatIndex(existing.indexBefore)} → {formatIndex(existing.indexAfter)} · {SKILL_LABEL[existing.theme]}{" "}
-          {existing.gain > 0 ? `+${existing.gain}` : "0"}
+          {formatNumber(existing.touchesDone)} / {formatNumber(existing.touchesTarget)} · Index {formatIndex(existing.indexBefore)} → {formatIndex(existing.indexAfter)} · {SKILL_LABEL[existing.theme]}{" "}
+          {typeof skillNow === "number" ? skillNow.toFixed(1) : existing.gain > 0 ? `+${existing.gain}` : "0"}
         </p>
       ) : null}
     </section>
@@ -231,6 +228,7 @@ export function TodayBoard({ player }: { player: Player }) {
         playerId={player.id}
         day={day}
         existing={existing}
+        skillNow={player.attrs?.[day.theme]}
         onNext={complete ? () => setCursor(dateKey(addDays(parseKey(day.date), 1))) : undefined}
         onBack={cursor !== todayKey ? () => setCursor(todayKey) : undefined}
       />

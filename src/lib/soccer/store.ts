@@ -11,7 +11,7 @@ import {
   type SkillBand,
   type SkillKey,
 } from "@/lib/soccer/types";
-import { bandFromAttr, buildPlan, dateKey, gainFor, parseKey, playerIndex } from "@/lib/soccer/engine";
+import { bandFromAttr, baseDaily, buildPlan, dateKey, exactAge, gainFor, parseKey, playerIndex } from "@/lib/soccer/engine";
 
 export type View = "today" | "calendar" | "path" | "clips";
 
@@ -28,7 +28,7 @@ interface PitchState {
   savePlayer: (player: Player) => void;
   removePlayer: (id: string) => void;
   toggleLogged: (id: string, date: string) => void;
-  logWork: (id: string, date: string, touchesDone: number, completed?: boolean) => void;
+  logWork: (id: string, date: string, touchesDone: number) => void;
   applyClip: (id: string, clip: PlayerClip) => void;
   removeClip: (id: string, clipId: string) => void;
   applyCheck: (id: string, check: CheckIn, skills?: Record<SkillKey, SkillBand>) => void;
@@ -105,7 +105,7 @@ function normalizePlayer(value: unknown): Player | null {
     const band = p.skills?.[key];
     skills[key] = isBand(band) ? band : "developing";
   }
-  return {
+  const player: Player = {
     id: p.id,
     name: typeof p.name === "string" && p.name.trim() ? p.name : "Player",
     age: Math.min(18, Math.max(4, Math.round(p.age))),
@@ -138,6 +138,29 @@ function normalizePlayer(value: unknown): Player | null {
     logs: Array.isArray(p.logs) ? p.logs.filter(isLog) : [],
     clips: Array.isArray(p.clips) ? p.clips.filter(isClip) : [],
   };
+  return settleLogs(player);
+}
+
+function settleLogs(player: Player): Player {
+  const logs = [...(player.logs ?? [])].filter((log) => SKILL_KEYS.includes(log.theme)).sort((a, b) => a.date.localeCompare(b.date));
+  if (!logs.length) return player;
+  const attrs = { ...player.attrs };
+  for (const log of logs) {
+    const gain = typeof log.gain === "number" ? log.gain : 0;
+    attrs[log.theme] = Math.min(99, Math.max(1, Math.round((attrs[log.theme] - gain) * 100) / 100));
+  }
+  const session = baseDaily(exactAge(player)).touches;
+  const nextLogs: SessionLog[] = [];
+  for (const log of logs) {
+    const indexBefore = playerIndex(attrs);
+    const gain = gainFor(attrs[log.theme] ?? 16, log.touchesDone, session, exactAge(player));
+    attrs[log.theme] = Math.min(99, Math.round(((attrs[log.theme] ?? 16) + gain) * 100) / 100);
+    nextLogs.push({ ...log, gain, indexBefore, indexAfter: playerIndex(attrs) });
+  }
+  const skills = { ...player.skills };
+  for (const key of SKILL_KEYS) skills[key] = bandFromAttr(attrs[key]);
+  const dropped = (player.logs ?? []).filter((log) => !SKILL_KEYS.includes(log.theme));
+  return { ...player, attrs, skills, logs: [...nextLogs, ...dropped] };
 }
 
 function attrsFrom(skills: Record<SkillKey, SkillBand>, raw: Partial<Record<SkillKey, number>> | undefined) {
@@ -217,7 +240,7 @@ export const usePitch = create<PitchState>()(
             };
           }),
         })),
-      logWork: (id, date, touchesDone, completed = true) =>
+      logWork: (id, date, touchesDone) =>
         set((state) => ({
           players: state.players.map((p) => {
             if (p.id !== id) return p;
@@ -226,25 +249,22 @@ export const usePitch = create<PitchState>()(
             const attrs = { ...p.attrs };
             const skills = { ...p.skills };
             if (prev) {
-              attrs[prev.theme] = Math.min(99, Math.max(1, Math.round((attrs[prev.theme] - prev.gain) * 10) / 10));
+              attrs[prev.theme] = Math.min(99, Math.max(1, Math.round((attrs[prev.theme] - prev.gain) * 100) / 100));
               skills[prev.theme] = bandFromAttr(attrs[prev.theme]);
             }
             const plan = buildPlan({ ...p, attrs, skills }, parseKey(date));
             const day = plan.days.find((item) => item.date === date);
             if (!day) return p;
             const indexBefore = playerIndex(attrs);
-            const target = prev?.touchesTarget ?? day.touches;
-            const ratio = target > 0 ? done / target : 0;
-            const gain = gainFor(attrs[day.theme] ?? 40, ratio * (completed ? 1 : 0.5));
-            const nextAttr = Math.min(99, Math.round(((attrs[day.theme] ?? 40) + gain) * 10) / 10);
+            const gain = gainFor(attrs[day.theme] ?? 16, done, baseDaily(exactAge(p)).touches, exactAge(p));
+            const nextAttr = Math.min(99, Math.round(((attrs[day.theme] ?? 16) + gain) * 100) / 100);
             attrs[day.theme] = nextAttr;
             skills[day.theme] = bandFromAttr(nextAttr);
             const indexAfter = playerIndex(attrs);
             const log: SessionLog = {
               date: day.date,
               touchesDone: done,
-              touchesTarget: target,
-              completed,
+              touchesTarget: day.touches,
               theme: day.theme,
               gain,
               indexBefore,

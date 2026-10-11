@@ -163,12 +163,21 @@ export function bandFromAttr(value: number): SkillBand {
   return "elite";
 }
 
-export function gainFor(attr: number, ratio: number): number {
-  // A small training-credit estimate, never a validated skill measurement.
-  if (!Number.isFinite(ratio) || ratio <= 0) return 0;
-  const credit = Math.min(1.25, Math.max(0, ratio));
-  const pace = attr >= 88 ? 0.03 : attr >= 72 ? 0.05 : attr >= 56 ? 0.07 : 0.1;
-  return Math.round(credit * pace * 100) / 100;
+// A full session closes a small fraction of the gap to 96 on that one skill.
+// Practice follows a power law: novices move, proficient players need far more
+// work for the next point, and a skill already near the top barely moves.
+const SKILL_CEILING = 96;
+const SESSION_RATE = 0.0036;
+
+export function gainFor(attr: number, touchesDone: number, sessionTouches: number, age = 12): number {
+  const done = Math.max(0, Math.round(touchesDone));
+  const session = Math.max(1, Math.round(sessionTouches));
+  if (done < 40 || attr >= SKILL_CEILING) return 0;
+  const ratio = done / session;
+  const credit = ratio <= 1 ? ratio : 1 + Math.min(0.25, (ratio - 1) * 0.5);
+  const window = age >= 8 && age <= 12 ? 1.15 : age >= 13 && age <= 15 ? 0.9 : age >= 16 ? 0.75 : 1;
+  const gain = credit * SESSION_RATE * Math.max(0, SKILL_CEILING - attr) * window;
+  return Math.round(gain * 100) / 100;
 }
 
 export function trackIndex99(age: number): number {
@@ -263,12 +272,12 @@ function clamp(n: number, min: number, max: number): number {
 
 export function baseDaily(age: number): { touches: number; minutes: number; film: number } {
   const table: Record<number, [number, number, number]> = {
-    4: [250, 20, 0],
-    5: [320, 25, 0],
-    6: [420, 30, 5],
-    7: [520, 35, 8],
-    8: [680, 40, 8],
-    9: [880, 48, 10],
+    4: [300, 22, 0],
+    5: [420, 28, 0],
+    6: [560, 34, 5],
+    7: [720, 38, 8],
+    8: [900, 44, 8],
+    9: [980, 48, 10],
     10: [1100, 52, 12],
     11: [1350, 58, 15],
     12: [1550, 62, 15],
@@ -382,7 +391,7 @@ export function doseFor(player: Player): Dose {
   if (player.environment === "rec") factor += 0.1;
   if (player.environment === "competitive") factor -= 0.05;
   const adherence = adherenceFrom(player.checks);
-  // Check-in adherence changes session framing, not the baseline target.
+  factor *= adherence.factor;
   factor = clamp(factor, 0.7, 1.48);
   return { index, track, gap, factor, adherence };
 }
@@ -748,18 +757,21 @@ function dayTargets(player: Player, kind: DayKind, factor: number): { minutes: n
     };
   }
   if (kind === "recovery") {
-    return {
-      minutes: player.age < 14 ? 12 : 16,
-      touches: player.age < 14 ? 80 : 120,
-    };
+    const young = age < 10;
+    const share = young ? 0.7 : age < 14 ? 0.42 : 0.32;
+    const minutes = clamp(Math.round(base.minutes * share), young ? 22 : 12, 40);
+    const floor = young ? Math.min(420, Math.round(base.touches * 0.55)) : 160;
+    const touches = clamp(Math.round(base.touches * share), floor, 1400);
+    return { minutes, touches };
   }
   if (kind === "team") {
     const minutes = clamp(Math.round(12 + Math.max(0, gap) * 4), 10, player.age < 12 ? 18 : 22);
     const touches = Math.round(minutes * (player.age < 10 ? 14 : 18));
     return { minutes, touches };
   }
-  const minutes = clamp(Math.round(base.minutes * factor), 15, 110);
-  const touches = clamp(Math.round(base.touches * factor), 120, 3200);
+  const minutes = clamp(Math.round(base.minutes * factor), age < 10 ? 30 : 15, 110);
+  const touchFloor = age < 10 ? Math.round(base.touches * 0.9) : 120;
+  const touches = clamp(Math.round(base.touches * factor), touchFloor, 3200);
   return { minutes, touches };
 }
 
@@ -1255,27 +1267,12 @@ export function buildPlan(player: Player, anchor = new Date()): Plan {
   if (individual > room + 8) {
     const scale = room / individual;
     days = days.map((d) => scaleDay(d, scale));
-    guard = `The technical gap asked for more ball work than ${[8, 11, 18].includes(player.age) ? "an" : "a"} ${player.age}-year-old should stack on top of team training. Individual time is capped near ${Math.round(room)} minutes this week. Past that, the lever is the team environment, not another hour in the yard.`;
+    const noTeam = player.teamDays.length === 0 && player.matchDays.length === 0 && (player.practiceDays ?? []).length === 0;
+    guard = noTeam
+      ? `Ball time is capped near ${Math.round(room)} minutes this week. That is the dose for a ${player.age}-year-old. Extra minutes would be junk volume, not a faster pathway.`
+      : `The technical gap asked for more ball work than ${[8, 11, 18].includes(player.age) ? "an" : "a"} ${player.age}-year-old should stack on top of team training. Individual time is capped near ${Math.round(room)} minutes this week. Past that, the lever is the team environment, not another hour in the yard.`;
   }
-  // Carry forward a bounded portion of missed work without penalizing recovery.
   const todayKey = dateKey(anchor);
-  const historic = (player.logs ?? []).filter((log) => log.date < todayKey && log.date >= dateKey(addDays(anchor, -28)));
-  const deficits = historic.reduce((sum, log) => sum + Math.max(0, log.touchesTarget - log.touchesDone), 0);
-  // Unlogged scheduled training is considered pending, not automatically a zero:
-  // parents can backfill those days without being incorrectly penalized.
-  let outstanding = deficits;
-  let spareMinutes = Math.max(0, cap - organized - days.reduce((sum, d) => sum + d.minutes, 0));
-  days = days.map((day) => {
-    if (day.date < todayKey || outstanding <= 0 || !["full", "team", "practice"].includes(day.kind))
-      return day;
-    const extra = Math.min(outstanding, Math.round(day.touches * 0.15),
-      Math.floor(day.touches * Math.min(0.15, spareMinutes / Math.max(1, day.minutes))));
-    if (extra <= 0) return day;
-    const adjusted = scaleDay(day, 1 + extra / Math.max(1, day.touches));
-    outstanding -= Math.max(0, adjusted.touches - day.touches);
-    spareMinutes = Math.max(0, spareMinutes - (adjusted.minutes - day.minutes));
-    return { ...adjusted, sentence: `${adjusted.sentence} Includes a small catch-up allocation.` };
-  });
   const today = days.find((d) => d.date === todayKey) ?? days[0];
   if (!today) {
     throw new Error("Plan produced no days");

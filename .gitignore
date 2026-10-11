@@ -1,0 +1,9 @@
+node_modules/
+.project_id
+.github_repo
+.env
+.env.*
+dist-pages/
+
+.vercel/
+.node_modules.lock
