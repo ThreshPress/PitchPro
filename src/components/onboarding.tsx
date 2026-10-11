@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Mark } from "@/components/mark";
 import { cn } from "@/lib/cn";
 import { BAND_LABEL, POS_LABEL, SKILL_LABEL } from "@/lib/soccer/copy";
 import { ageBand, buildPlan, exactAge, formatNumber, playerIndex } from "@/lib/soccer/engine";
@@ -82,7 +83,10 @@ export function Onboarding({ initial }: { initial?: Player }) {
     <div className="min-h-screen bg-paper text-ink">
       <div className="mx-auto max-w-xl px-4 py-6 md:px-8 md:py-10">
         <section>
-          <h1 className="font-display text-5xl leading-none md:text-6xl">Pitch Pro</h1>
+          <div className="flex items-center gap-3">
+            <Mark className="size-14" />
+            <h1 className="font-display text-5xl leading-none md:text-6xl">Pitch Pro</h1>
+          </div>
 
           {step === 0 ? (
             <div className="mt-6 flex flex-col gap-4">

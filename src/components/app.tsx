@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CalendarDays, Flag, Target, Video } from "lucide-react";
 import { CalendarBoard, PathBoard, TodayBoard } from "@/components/board";
 import { ClipsBoard } from "@/components/clips";
+import { Mark } from "@/components/mark";
 import { Onboarding } from "@/components/onboarding";
 import { cn } from "@/lib/cn";
 import { ageBand, firstName, playerIndex } from "@/lib/soccer/engine";
@@ -40,7 +41,8 @@ export function App() {
 
   if (!ready) {
     return (
-      <main className="min-h-screen bg-paper px-6 pt-24 text-ink">
+      <main className="flex min-h-screen items-center gap-3 bg-paper px-6 text-ink">
+        <Mark className="size-12" />
         <p className="font-display text-3xl leading-none">Pitch Pro</p>
       </main>
     );
@@ -157,15 +159,5 @@ function NavButton({
       <Icon className="size-4" />
       {label}
     </button>
-  );
-}
-
-function Mark() {
-  return (
-    <svg viewBox="0 0 32 32" className="size-9" aria-hidden>
-      <rect width="32" height="32" rx="8" className="fill-pitch" />
-      <path d="M8 23V9h7.2a5.2 5.2 0 0 1 0 10.4H8" fill="none" className="stroke-on-pitch" strokeWidth="2.2" />
-      <circle cx="23.5" cy="20" r="2.2" className="fill-cone" />
-    </svg>
   );
 }
